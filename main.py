@@ -8,7 +8,7 @@ if __name__== "__main__":
     parser.add_argument(
         '--stage',
         type=str,
-        choices=['download', 'preprocess', 'analyze'],
+        choices=['download', 'mndwi', 'extent'],
         default='all',
         help='Stage of pipeline to run'
     )
@@ -18,6 +18,9 @@ if __name__== "__main__":
     
     if args.stage == 'all':
         pipeline.run_full_pipeline()
-    elif args.stage == 'all':
+    elif args.stage == 'download':
         pipeline.run_download()
-    
+    elif args.stage == 'mndwi':
+        pipeline.run_mndwi()
+    elif args.stage == 'extent':
+        pipeline.run_extent_analysis()

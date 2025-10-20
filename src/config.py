@@ -39,6 +39,9 @@ class Config:
 
     green_band: str = "B3"
     swir_band: str = "B11"
+    target_crs: str = 'EPSG:32636'
+    threshold: float = 0.15
+    
 
     # --------------------------------------------------------------------------
     # Logging
@@ -53,7 +56,7 @@ class Config:
         self.data_dir = self.base_dir / "data"
         self.raw_data_dir = self.data_dir / "raw"
         self.processed_data_dir = self.data_dir / "processed"
-        self.results_dir = self.base_dir / "results"
+        self.results_dir = self.data_dir / "results"
 
         self.aoi_path = os.path.join(self.processed_data_dir, "aoi.shp")
         self.output_prefix = f"{self.project_name}_{self.timestamp}"

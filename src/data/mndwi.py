@@ -13,18 +13,71 @@ class Mndwi:
         self.raw_dir = config.raw_data_dir
         self.processed = config.processed_data_dir
         
-    def find_band(self, directory):
+    def find_band(self, filepath, bandname):
         '''
         Finds the bands used to calculate MNDWI based on the specific satellite mission dataset
-        :param directory: The directory containing the satellite datasets to analyze
+        :param filepath: The filepath containing the satellite dataset to analyze
+        :param bandname: The name of the individual band to find
         '''
-        for file in os.listdir(directory):
-            if 'sentinel' in file.lower() and file.lower().endswith('.tif'):
-                green = 'B03'
-                swir = 'B11'
-            elif 'landsat' in file.lower() and file.lower().endswith('.tif'):
-                green = 'green'
-                swir = 'swir16'
+        ds = rio.open_rasterio(filepath)
+        band_found = None
+
+        # Open the file with rasterio to inspect per-band descriptions
+        with rasterio.open(filepath) as src:
+            descriptions = src.descriptions  # tuple of strings or Nones
+
+        for i in range(len(descriptions)):
+            desc = descriptions[i]
+            # Make sure desc is a string
+            if isinstance(desc, (tuple, list)):
+                desc = " ".join([str(d) for d in desc])
+            elif desc is None:
+                desc = ""
+
+            if bandname.lower() in desc.lower():
+                band_found = ds.isel(band=i)
+                break
+
+        if band_found is None:
+            # fallback – check if bandname appears in filename
+            fname = os.path.basename(filepath).lower()
+            if bandname.lower() in fname:
+                band_found = ds.isel(band=0)
+            else:
+                raise ValueError(f"Band '{bandname}' not found in {filepath}")
+
+        band_found.name = bandname
+        return band_found
+    
+    def mndwi_calc(self, green, swir, outfile_basename):
+        '''
+        Calculates the Modified Normalized Difference Water Index
+        '''
+        green = green.astype('float32')
+        swir = swir.astype('float32')
+        mndwi = (green - swir) / (green + swir)
+        mndwi.name = "MNDWI"
+        
+        out_path = os.path.join(self.processed, f"{outfile_basename}_mndwi.tif")
+        mndwi.rio.to_raster(out_path)
+        self.logger.info(f"MNDWI saved to {out_path}")
             
-         
+            
+    def run_mndwi(self):
+        '''
+        Main entry point to run the mndwi calculation pipeline
+        '''
+        #find bands 
+        landsat_2016_green = self.find_band(os.path.join(self.raw_dir, 'landsat-c2-l2_2016.tif'), 'green')
+        landsat_2016_swir = self.find_band(os.path.join(self.raw_dir, 'landsat-c2-l2_2016.tif'), 'swir16')
+        sentinel_2020_green = self.find_band(os.path.join(self.raw_dir, 'sentinel-2-l2a_2020.tif'), 'B03')
+        sentinel_2020_swir = self.find_band(os.path.join(self.raw_dir, 'sentinel-2-l2a_2020.tif'), 'B11')
+        sentinel_2025_green = self.find_band(os.path.join(self.raw_dir, 'sentinel-2-l2a_2025.tif'), 'B03')
+        sentinel_2025_swir = self.find_band(os.path.join(self.raw_dir, 'sentinel-2-l2a_2025.tif'), 'B11')
+        
+        #calculate mndwi
+        self.mndwi_calc(landsat_2016_green, landsat_2016_swir, '2016')
+        self.mndwi_calc(sentinel_2020_green, sentinel_2020_swir, '2020')
+        self.mndwi_calc(sentinel_2025_green, sentinel_2025_swir, '2025')
+        
         
