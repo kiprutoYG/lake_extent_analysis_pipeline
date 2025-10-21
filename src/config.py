@@ -40,7 +40,7 @@ class Config:
     green_band: str = "B3"
     swir_band: str = "B11"
     target_crs: str = 'EPSG:32636'
-    threshold: float = 0.15
+    threshold: float = 0.1
     
 
     # --------------------------------------------------------------------------
@@ -63,7 +63,7 @@ class Config:
 
         # Temporal ranges — can still be dynamic
         self.date_ranges = [
+            ("2007-10-01", "2007-10-31"),
             ("2016-10-01", "2016-10-31"),
-            ("2020-10-01", "2020-10-31"),
             ("2025-09-15", "2025-10-11"),
         ]
