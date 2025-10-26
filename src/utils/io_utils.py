@@ -47,7 +47,7 @@ def kmz_to_shp(kmz_file: str, out_dir: str):
     print(f"Converted {kmz_file} → {shp_path}")
     return shp_path
 
-def read_vector(file: str):
+def read_vector(file: str) -> gpd.GeoDataFrame:
     '''
     Reads a vector file into a GeoDataFrame
     '''

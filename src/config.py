@@ -31,9 +31,9 @@ class Config:
     # Remote sensing data
     # --------------------------------------------------------------------------
     stac_url: str = "https://planetarycomputer.microsoft.com/api/stac/v1"
-    sentinel_collection: str = "sentinel-2-l2a"
     landsat_collection: str = "landsat-c2-l2"
     dem_collection: str = "cop-dem-glo-30"
+    era5_collection: str = "era5-pds"
 
     cloud_cover_threshold: int = 30
 
@@ -61,9 +61,5 @@ class Config:
         self.aoi_path = os.path.join(self.processed_data_dir, "aoi.shp")
         self.output_prefix = f"{self.project_name}_{self.timestamp}"
 
-        # Temporal ranges — can still be dynamic
-        self.date_ranges = [
-            ("2007-10-01", "2007-10-31"),
-            ("2016-10-01", "2016-10-31"),
-            ("2025-09-15", "2025-10-11"),
-        ]
+        # Temporal ranges
+        self.years = [2007, 2016, 2020]

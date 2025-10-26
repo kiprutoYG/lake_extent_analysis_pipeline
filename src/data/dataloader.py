@@ -3,9 +3,12 @@ import logging
 from pystac_client import Client
 import geopandas as gpd
 from pystac.extensions.eo import EOExtension as eo
+from ..utils.io_utils import read_vector
+import xarray as xr
 import odc.stac
 import rioxarray as rio
 import os
+import fsspec
 
 class DataLoader:
     '''
@@ -16,106 +19,133 @@ class DataLoader:
         self.config = config
         self.aoi_path = config.aoi_path
         self.stac_url = config.stac_url
-        self.sentinel_collection = config.sentinel_collection
         self.landsat_collection = config.landsat_collection
         self.dem_collection = config.dem_collection
+        self.era5 = config.era5_collection
         self.cloud_cover = config.cloud_cover_threshold
-        self.date_ranges = config.date_ranges
+        self.years = config.years
         self.raw_dir = config.raw_data_dir
         self.target_crs = config.target_crs
         
         self.logger.info('Data Downloader Initialized.')
         
-    def load_aoi(self):
-        '''
-        Loads the shapefile for area of interest into gdf
-        '''
-        self.logger.info(f'Getting area of interest from {self.aoi_path}')
-        aoi_gdf = gpd.read_file(self.aoi_path)
-        return aoi_gdf.to_crs('EPSG:4326')
     
-    def get_collection_by_year(self, year):
-        '''
-        Selects the appropriate collection for a certain year
-        '''
-        if year <= 2016:
-            return self.config.landsat_collection
-        else:
-            return self.config.sentinel_collection
         
     def fetch_data(self):
         '''
         Connects and pulls data from the stac url for specific year and specific satellite mission
-        :returns: cloud optimized geotiffs
+        :returns: cloud optimized geotiffs in memory
         '''
-        aoi = self.load_aoi()
+        aoi = read_vector(self.aoi_path).to_crs('EPSG:4326')
         minx, miny, maxx, maxy = aoi.total_bounds 
         bbox = [minx, miny, maxx, maxy]
         client = Client.open(self.stac_url, modifier=planetary_computer.sign_inplace,)
         self.logger.info('Connected to stac url successfully.')
+        # self._fetch_landsat(client, aoi, bbox)
+        # self._fetch_dem(client, aoi, bbox)
+        self._fetch_precip(client, aoi, bbox)
         
+    
+    def _fetch_landsat(self, client, aoi, bbox) -> list[str]:
         downloaded_files = []
-        for date_range in self.date_ranges:
-            start, end = date_range[0], date_range[1]
-            year = int(start[:4])
-            collection = self.get_collection_by_year(year)
-            self.logger.info(f'Getting collection for year: {year}...')
-            
+        for year in self.years:
+            start, end = f'{year}-10-01', f'{year}-10-31'
             search = client.search(
-                collections=[collection],
+                collections=[self.landsat_collection],
                 intersects= aoi.geometry.iloc[0].__geo_interface__,
                 datetime= f'{start}/{end}',
                 query={"eo:cloud_cover": {"lt": self.cloud_cover}}
             )
-            search_dem = client.search(
-                collections = [self.dem_collection],
-                intersects = aoi.geometry.iloc[0].__geo_interface__,
-            )
-            dem_items = list(search_dem.items())
             items = list(search.items())
             if not items:
                 self.logger.info(f'Could not get imagery for year {year}')
                 continue
             
             selected_item = min(items, key=lambda item: eo.ext(item).cloud_cover)
-            selected_dem = dem_items[0]
             self.logger.info(f'Selected {selected_item.id} with {selected_item.properties['eo:cloud_cover']}% cloud cover')
             try:
-                if collection == 'landsat-c2-l2':
-                    bands_of_interest = ["nir08", "red", "green", "blue", "swir16"]
-                    data = odc.stac.load(
-                        items,
-                        bands=bands_of_interest,
-                        bbox=bbox,
-                        groupby="solar_day",  # ensures same-day scenes are grouped
-                        chunks={},
-                        crs=self.target_crs,
-                        resolution=30
-                    )
-                    # Mosaic multiple tiles into one
-                    if "time" in data.dims:
-                        data = data.isel(time=0)
-
-                    data = data.mosaic(dim="time") if "time" in data.dims else data
-                else:
-                    bands_of_interest = ['B02', 'B03', 'B04', 'B11']
-                    
-                    data = odc.stac.stac_load(
-                        [selected_item], bands=bands_of_interest, bbox=bbox
-                    ).isel(time=0)
-                selected_dem = odc.stac.stac_load(
-                    [selected_dem], bbox=bbox
-                ).isel(time=0)
+                bands_of_interest = ["nir08", "red", "green", "blue", "swir16"]
+                data = odc.stac.load(
+                    items,
+                    bands=bands_of_interest,
+                    bbox=bbox,
+                    groupby="solar_day",  # ensures same-day scenes are grouped
+                    chunks={},
+                    crs=self.target_crs,
+                    resolution=30
+                )
+                # Mosaic multiple tiles into one
+                if "time" in data.dims:
+                    data = data.isel(time=0)
+                data = data.mosaic(dim="time") if "time" in data.dims else data
+                #ensure it is in projected crs
                 data = data.rio.reproject(self.target_crs)
-                out_path = os.path.join(self.raw_dir, f'{collection}_{year}.tif')
-                dem_path = os.path.join(self.raw_dir, f'dem.tif')
+                out_path = os.path.join(self.raw_dir, f'{self.landsat_collection}_{year}.tif')
                 self.logger.info(f'Saving item {selected_item.id} for year {year} to {out_path}')
                 data.rio.to_raster(out_path)
-                selected_dem = selected_dem.rio.reproject(self.target_crs)
-                selected_dem.rio.to_raster(dem_path)
                 downloaded_files.append(out_path)
             except KeyError:
-                self.logger.info(f'Could not download imagery for {collection}, year {year}')
+                self.logger.info(f'Could not download imagery for {self.landsat_collection}, year {year}')
                 continue
         self.logger.info(f"Data download complete for {len(downloaded_files)} years.")
         return downloaded_files
+    
+    def _fetch_dem(self, client, aoi, bbox) -> None:
+        search_dem = client.search(
+                collections = [self.dem_collection],
+                intersects = aoi.geometry.iloc[0].__geo_interface__,
+            )
+        dem_items = list(search_dem.items())
+        #get first item
+        selected_dem = dem_items[0]
+        try:
+            selected_dem = odc.stac.stac_load(
+                    [selected_dem], bbox=bbox
+                ).isel(time=0)
+            selected_dem = selected_dem.rio.reproject(self.target_crs)
+            dem_path = os.path.join(self.raw_dir, f'dem.tif')
+            selected_dem.rio.to_raster(dem_path)
+            self.logger.info(f'Saving the dem to {dem_path}')
+        except KeyError:
+            self.logger.info('Could not download dem raster.')
+        
+    def _fetch_precip(self, client, aoi, bbox) -> list[str]:
+        downloaded_files = []
+        for year in self.years:
+            date = f'{year}-08'
+            search = client.search(
+                collections=[self.era5],
+                intersects= aoi.geometry.iloc[0].__geo_interface__,
+                datetime= date,
+                query={"era5:kind": {"eq": "fc"}}
+            )
+            items = list(search.items())
+            if not items:
+                self.logger.info(f'Could not get any items for {self.era5}, date: {date}')
+                continue
+            selected_item = items[0]
+            try:
+                #build the dataset
+                signed_item = planetary_computer.sign(selected_item)
+                
+                #pick precipitation item only
+                precip_asset = signed_item.assets["precipitation_amount_1hour_Accumulation"]
+                
+                ds = xr.open_dataset(precip_asset.href)
+                minx, miny, maxx, maxy = bbox
+                ds_aoi = ds.isel(longitude=slice(minx, maxx), latitude=slice(maxy, miny))
+                var_name = list(ds_aoi.data_vars.keys())[0]  # usually 'precipitation_amount_1hour_Accumulation'
+                precip = ds_aoi[var_name].rio.reproject(self.target_crs)
+            
+                #out path
+                out_precip = os.path.join(self.raw_dir, f'{self.era5}_{year}.tif')
+                precip.rio.to_raster(out_precip)
+                self.logger.info(f'Saving the ERA5 dataset to {out_precip}')
+                downloaded_files.append(out_precip)
+            
+            except KeyError:
+                self.logger.info('Could not download era5 raster.')
+                continue
+        self.logger.info(f"Data download complete for {len(downloaded_files)} years.")
+        return downloaded_files
+            

@@ -76,7 +76,7 @@ class ExtentAnalyzer:
             gdf_dissolved['area_m2'] = gdf_dissolved.geometry.area
 
             # 4. remove small polygons below threshold (e.g., < 500 m²)
-            gdf_dissolved = gdf_dissolved[gdf_dissolved['area_m2'] >= 500]
+            gdf_dissolved = gdf_dissolved[gdf_dissolved['area_m2'] >= 1000]
 
             # 5. fix invalid geometries & optional simplification
             gdf_dissolved['geometry'] = gdf_dissolved['geometry'].buffer(0)
@@ -153,8 +153,5 @@ class ExtentAnalyzer:
         self.create_mask(os.path.join(self.processed, '2025_mndwi.tif'))
         self.analyze_shoreline()
         
-        
-        
-        #
                     
     
