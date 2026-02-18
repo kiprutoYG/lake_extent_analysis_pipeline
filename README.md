@@ -283,20 +283,20 @@ Predicted 2030 increase: 21 km²
 High-risk zones identified around southern and eastern shoreline.
 
 * Infrastructure inundated or at risk:
-Kenya Marine and Fisheries Research
-AIC Parking Lot
-Island camp Baringo
-Kenya Maritime Authority Baringo Office
-Baringo Eco Safaris
-JICA Green Bells Academy
-Salabani Primary School
-Ngambo Primary School
-Everfresh Dairy
-PAG Housing
-and many other buildings
-Hectares of farming land
-Tree cover
-Wetlands
+Kenya Marine and Fisheries Research  
+AIC Parking Lot  
+Island camp Baringo  
+Kenya Maritime Authority Baringo Office  
+Baringo Eco Safaris  
+JICA Green Bells Academy  
+Salabani Primary School  
+Ngambo Primary School  
+Everfresh Dairy  
+PAG Housing  
+and many other buildings  
+Hectares of farming land  
+Tree cover  
+Wetlands  
 
 ---
 
