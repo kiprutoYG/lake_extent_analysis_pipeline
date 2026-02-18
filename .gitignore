@@ -1,0 +1,18 @@
+#ignore data folder
+data/
+*.tif
+*.shp
+*.dbf
+*.gpkg
+*.kmz
+
+#ignore cache and pycache
+__pycache__/
+*.pyc
+cache/
+
+#ignore logs
+logs/
+
+#ignore virtual environment
+venv/
