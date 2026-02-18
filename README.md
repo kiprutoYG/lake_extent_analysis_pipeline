@@ -282,7 +282,7 @@ Predicted 2030 increase: 21 km²
 
 High-risk zones identified around southern and eastern shoreline.
 
-* Infrastructure inundated or at risk:
+* Infrastructure inundated or at risk:    
 Kenya Marine and Fisheries Research  
 AIC Parking Lot  
 Island camp Baringo  
@@ -325,8 +325,8 @@ This aligns with the project goal of building geospatial systems that support da
 
 # 10. Author
 
-Elkana Kipruto
-Geospatial Data Scientist & Data Engineer
+Elkana Kipruto  
+Geospatial Data Scientist & Data Engineer  
 Interested in remote sensing, agriculture analytics, and environmental monitoring.
 
 Portfolio projects include geospatial dashboards, drone crop analysis, NDVI time series modelling, and environmental monitoring tools.
