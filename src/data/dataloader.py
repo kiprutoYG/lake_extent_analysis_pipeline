@@ -41,15 +41,17 @@ class DataLoader:
         bbox = [minx, miny, maxx, maxy]
         client = Client.open(self.stac_url, modifier=planetary_computer.sign_inplace,)
         self.logger.info('Connected to stac url successfully.')
-        # self._fetch_landsat(client, aoi, bbox)
-        # self._fetch_dem(client, aoi, bbox)
-        self._fetch_precip(client, aoi, bbox)
+        self._fetch_landsat(client, aoi, bbox)
+        self._fetch_dem(client, aoi, bbox)
         
     
     def _fetch_landsat(self, client, aoi, bbox) -> list[str]:
         downloaded_files = []
         for year in self.years:
-            start, end = f'{year}-10-01', f'{year}-10-31'
+            if year == 2019:
+                start, end = f'{year}-09-01', f'{year}-10-31'
+            else:
+                start, end = f'{year}-10-01', f'{year}-10-31'
             search = client.search(
                 collections=[self.landsat_collection],
                 intersects= aoi.geometry.iloc[0].__geo_interface__,
@@ -64,7 +66,7 @@ class DataLoader:
             selected_item = min(items, key=lambda item: eo.ext(item).cloud_cover)
             self.logger.info(f'Selected {selected_item.id} with {selected_item.properties['eo:cloud_cover']}% cloud cover')
             try:
-                bands_of_interest = ["nir08", "red", "green", "blue", "swir16"]
+                bands_of_interest = ["green", "swir16"]
                 data = odc.stac.load(
                     items,
                     bands=bands_of_interest,
@@ -108,44 +110,4 @@ class DataLoader:
             self.logger.info(f'Saving the dem to {dem_path}')
         except KeyError:
             self.logger.info('Could not download dem raster.')
-        
-    def _fetch_precip(self, client, aoi, bbox) -> list[str]:
-        downloaded_files = []
-        for year in self.years:
-            date = f'{year}-08'
-            search = client.search(
-                collections=[self.era5],
-                intersects= aoi.geometry.iloc[0].__geo_interface__,
-                datetime= date,
-                query={"era5:kind": {"eq": "fc"}}
-            )
-            items = list(search.items())
-            if not items:
-                self.logger.info(f'Could not get any items for {self.era5}, date: {date}')
-                continue
-            selected_item = items[0]
-            try:
-                #build the dataset
-                signed_item = planetary_computer.sign(selected_item)
-                
-                #pick precipitation item only
-                precip_asset = signed_item.assets["precipitation_amount_1hour_Accumulation"]
-                
-                ds = xr.open_dataset(precip_asset.href)
-                minx, miny, maxx, maxy = bbox
-                ds_aoi = ds.isel(longitude=slice(minx, maxx), latitude=slice(maxy, miny))
-                var_name = list(ds_aoi.data_vars.keys())[0]  # usually 'precipitation_amount_1hour_Accumulation'
-                precip = ds_aoi[var_name].rio.reproject(self.target_crs)
-            
-                #out path
-                out_precip = os.path.join(self.raw_dir, f'{self.era5}_{year}.tif')
-                precip.rio.to_raster(out_precip)
-                self.logger.info(f'Saving the ERA5 dataset to {out_precip}')
-                downloaded_files.append(out_precip)
-            
-            except KeyError:
-                self.logger.info('Could not download era5 raster.')
-                continue
-        self.logger.info(f"Data download complete for {len(downloaded_files)} years.")
-        return downloaded_files
-            
+    

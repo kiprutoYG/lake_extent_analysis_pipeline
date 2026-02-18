@@ -5,6 +5,8 @@ from src.config import Config
 from src.data.dataloader import DataLoader
 from src.data.mndwi import Mndwi
 from src.analysis.extent import ExtentAnalyzer
+from src.data.dem_features import DemProcessing
+from src.prediction.prediction import Predictor
 
 class LakeRisePipeline:
     '''
@@ -15,6 +17,8 @@ class LakeRisePipeline:
         self.dataloader = DataLoader(config)
         self.mndwi = Mndwi(config)
         self.extent_analyzer = ExtentAnalyzer(config)
+        self.dem_features = DemProcessing(config)
+        self.predictor = Predictor(config)
         #logging info to panel
         logging.basicConfig(level=self.config.log_level)
         self.logger = logging.getLogger('LakeRisePipeline')
@@ -30,6 +34,14 @@ class LakeRisePipeline:
         self.logger.info('Downloading data...')
         self.dataloader.fetch_data()
         self.logger.info('Data download complete')
+        
+    def process_dem(self) -> None:
+        '''
+        Run the processing of the dem to get features
+        '''
+        self.logger.info('Processing DEM...')
+        self.dem_features.calculate_features()
+        self.logger.info('DEM features calculation complete.')
     
     def run_mndwi(self):
         '''
@@ -47,11 +59,24 @@ class LakeRisePipeline:
         self.extent_analyzer.run_extent()
         self.logger.info('Extent extraction complete.')
         
+        
+    def run_prediction(self):
+        '''
+        Run the prediction part of the analysis
+        '''
+        self.logger.info('Running prediction...')
+        self.predictor.train([2007, 2019, 2025])
+        self.predictor.predict(2031)
+        self.predictor.save_model()
+        self.logger.info('Prediction complete.')
+        
     def run_full_pipeline(self):
         '''
         Run every job in the pipeline
         '''
         self.run_download()
         self.run_mndwi()
+        self.process_dem()
         self.run_extent_analysis()
+        self.run_prediction()
         

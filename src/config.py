@@ -20,6 +20,8 @@ class Config:
     raw_data_dir: Path = field(init=False)
     processed_data_dir: Path = field(init=False)
     results_dir: Path = field(init=False)
+    masks: Path = field(init=False)
+    dem_file: Path = field(init=False)
 
     # --------------------------------------------------------------------------
     # Analysis area
@@ -31,7 +33,7 @@ class Config:
     # Remote sensing data
     # --------------------------------------------------------------------------
     stac_url: str = "https://planetarycomputer.microsoft.com/api/stac/v1"
-    landsat_collection: str = "landsat-c2-l2"
+    landsat_collection: str = "landsat-c2-l2" 
     dem_collection: str = "cop-dem-glo-30"
     era5_collection: str = "era5-pds"
 
@@ -57,9 +59,11 @@ class Config:
         self.raw_data_dir = self.data_dir / "raw"
         self.processed_data_dir = self.data_dir / "processed"
         self.results_dir = self.data_dir / "results"
+        self.dem_file = self.raw_data_dir/ "dem.tif"
+        self.masks = self.processed_data_dir/'masks'
 
         self.aoi_path = os.path.join(self.processed_data_dir, "aoi.shp")
         self.output_prefix = f"{self.project_name}_{self.timestamp}"
 
         # Temporal ranges
-        self.years = [2007, 2016, 2020]
+        self.years = [2007, 2013, 2016, 2019, 2025]
